@@ -1,0 +1,17 @@
+// Contents of "lte-nodeb-system.yang"
+module nodeb-system {
+  namespace "lte";
+  prefix "lte";
+  typedef enum-example-type {
+    type enumeration {
+        enum umc{
+          value 0;
+          description "UMC";
+        }
+        enum upc {
+          value 1;
+          description "UPC";
+        }
+    }
+  }
+}
