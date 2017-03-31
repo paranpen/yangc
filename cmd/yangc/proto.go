@@ -46,6 +46,14 @@ var (
 )
 
 func init() {
+	var protoCmd = &cobra.Command{
+		Use:   "proto",
+		Short: "yangc with proto format",
+		Run: func(cmd *cobra.Command, args []string) {
+			doProto(os.Stdout, entries)
+		},
+	}
+	mainCmd.AddCommand(protoCmd)
 }
 
 // A protofile collects the produced proto along with meta information.
