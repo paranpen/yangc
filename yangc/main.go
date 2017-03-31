@@ -6,7 +6,7 @@ import (
 	"os"
 	"sort"
 
-	"github.com/openconfig/goyang/pkg/yang"
+	"github.com/paranpen/yangc/pkg/yang"
 	"github.com/spf13/cobra"
 )
 
@@ -86,4 +86,3 @@ func exitIfError(errs []error) {
 		os.Exit(1)
 	}
 }
-

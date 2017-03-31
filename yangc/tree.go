@@ -17,14 +17,24 @@ package main
 import (
 	"fmt"
 	"io"
+	"os"
 	"sort"
 
-	"github.com/openconfig/goyang/pkg/indent"
-	"github.com/openconfig/goyang/pkg/yang"
+	"github.com/paranpen/yangc/pkg/indent"
+	"github.com/paranpen/yangc/pkg/yang"
+	"github.com/spf13/cobra"
 )
 
 func init() {
-
+	var treeCmd = &cobra.Command{
+		Use:   "proto",
+		Short: "yangc with tree format",
+		Run: func(cmd *cobra.Command, args []string) {
+			entries := doCompile(yangFileName)
+			doTree(os.Stdout, entries)
+		},
+	}
+	mainCmd.AddCommand(treeCmd)
 }
 
 func doTree(w io.Writer, entries []*yang.Entry) {

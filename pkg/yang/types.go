@@ -23,25 +23,25 @@ import (
 	"sync"
 )
 
-// A typeDictionary is a dictonary of all Typedefs defined in all Typedefers.
+// A TypeDictionary is a dictonary of all Typedefs defined in all Typedefers.
 // A map of Nodes is used rather than a map of Typedefers to simplify usage
 // when traversing up a Node tree.
-type typeDictionary struct {
+type TypeDictionary struct {
 	mu   sync.Mutex
 	dict map[Node]map[string]*Typedef
 }
 
-// typeDict is a protected global dictionary of all typedefs.
+// TypeDict is a protected global dictionary of all typedefs.
 // TODO(borman): should this be made as part of some other structure, rather
 // than a singleton.  That can be done later when we replumb everything to more
 // or less pass around an extra pointer.  That is not needed until such time
 // that we plan for a single application to process completely independent YANG
 // modules where there may be conflicts between the modules or we plan to
 // process them completely independently of eachother.
-var typeDict = typeDictionary{dict: map[Node]map[string]*Typedef{}}
+var TypeDict = TypeDictionary{dict: map[Node]map[string]*Typedef{}}
 
-// add adds an entry to the typeDictionary d.
-func (d *typeDictionary) add(n Node, name string, td *Typedef) {
+// add adds an entry to the TypeDictionary d.
+func (d *TypeDictionary) add(n Node, name string, td *Typedef) {
 	defer d.mu.Unlock()
 	d.mu.Lock()
 	if d.dict[n] == nil {
@@ -51,7 +51,7 @@ func (d *typeDictionary) add(n Node, name string, td *Typedef) {
 }
 
 // find returns the Typedef name define in node n, or nil.
-func (d *typeDictionary) find(n Node, name string) *Typedef {
+func (d *TypeDictionary) find(n Node, name string) *Typedef {
 	defer d.mu.Unlock()
 	d.mu.Lock()
 	if d.dict[n] == nil {
@@ -62,7 +62,7 @@ func (d *typeDictionary) find(n Node, name string) *Typedef {
 
 // findExternal finds the externally defined typedef name in the module imported
 // by n's root with the specified prefix.
-func (d *typeDictionary) findExternal(n Node, prefix, name string) (*Typedef, error) {
+func (d *TypeDictionary) findExternal(n Node, prefix, name string) (*Typedef, error) {
 	root := FindModuleByPrefix(n, prefix)
 	if root == nil {
 		return nil, fmt.Errorf("%s: unknown prefix: %s for type %s", Source(n), prefix, name)
@@ -76,8 +76,8 @@ func (d *typeDictionary) findExternal(n Node, prefix, name string) (*Typedef, er
 	return nil, fmt.Errorf("%s: unknown type %s", Source(n), name)
 }
 
-// typedefs returns a slice of all typedefs in d.
-func (d *typeDictionary) typedefs() []*Typedef {
+// Typedefs returns a slice of all typedefs in d.
+func (d *TypeDictionary) Typedefs() []*Typedef {
 	var tds []*Typedef
 	defer d.mu.Unlock()
 	d.mu.Lock()
@@ -94,7 +94,7 @@ func (d *typeDictionary) typedefs() []*Typedef {
 // typedef dictionary.
 func addTypedefs(t Typedefer) {
 	for _, td := range t.Typedefs() {
-		typeDict.add(t, td.Name, td)
+		TypeDict.add(t, td.Name, td)
 	}
 }
 
@@ -106,8 +106,8 @@ func resolveTypedefs() []error {
 
 	// When resolve typedefs, we may need to look up other typedefs.
 	// We gather all typedefs into a slice so we don't deadlock on
-	// typeDict.
-	for _, td := range typeDict.typedefs() {
+	// TypeDict.
+	for _, td := range TypeDict.Typedefs() {
 		errs = append(errs, td.resolve()...)
 	}
 	return errs
@@ -182,13 +182,13 @@ check:
 		// If we have no prefix, or the prefix is what we call our own
 		// root, then we look in our ancestors for a typedef of name.
 		for n := Node(t); n != nil; n = n.ParentNode() {
-			if td = typeDict.find(n, name); td != nil {
+			if td = TypeDict.find(n, name); td != nil {
 				break check
 			}
 		}
 		// We need to check our sub-modules as well
 		for _, in := range root.Include {
-			if td = typeDict.find(in.Module, name); td != nil {
+			if td = TypeDict.find(in.Module, name); td != nil {
 				break check
 			}
 		}
@@ -208,7 +208,7 @@ check:
 		// what module it is part of and if it is defined at the top
 		// level of that module.
 		var err error
-		td, err = typeDict.findExternal(t, prefix, name)
+		td, err = TypeDict.findExternal(t, prefix, name)
 		if err != nil {
 			return []error{err}
 		}

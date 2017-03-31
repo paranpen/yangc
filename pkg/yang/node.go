@@ -21,7 +21,7 @@ import (
 	"reflect"
 	"strings"
 
-	"github.com/openconfig/goyang/pkg/indent"
+	"github.com/paranpen/yangc/pkg/indent"
 )
 
 // A Node contains a yang statement and all attributes and sub-statements.

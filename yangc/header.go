@@ -5,7 +5,7 @@ import (
 	"io"
 	"os"
 
-	"../pkg/yang"
+	"github.com/paranpen/yangc/pkg/yang"
 	"github.com/spf13/cobra"
 )
 

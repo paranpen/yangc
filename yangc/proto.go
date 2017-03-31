@@ -26,8 +26,9 @@ import (
 	"strings"
 	"time"
 
-	"github.com/openconfig/goyang/pkg/indent"
-	"github.com/openconfig/goyang/pkg/yang"
+	"github.com/paranpen/yangc/pkg/indent"
+	"github.com/paranpen/yangc/pkg/yang"
+	"github.com/spf13/cobra"
 )
 
 const (
@@ -50,6 +51,7 @@ func init() {
 		Use:   "proto",
 		Short: "yangc with proto format",
 		Run: func(cmd *cobra.Command, args []string) {
+			entries := doCompile(yangFileName)
 			doProto(os.Stdout, entries)
 		},
 	}

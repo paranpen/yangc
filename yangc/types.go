@@ -17,10 +17,12 @@ package main
 import (
 	"fmt"
 	"io"
+	"os"
 	"strings"
 
-	"github.com/openconfig/goyang/pkg/indent"
-	"github.com/openconfig/goyang/pkg/yang"
+	"github.com/paranpen/yangc/pkg/indent"
+	"github.com/paranpen/yangc/pkg/yang"
+	"github.com/spf13/cobra"
 )
 
 var (
@@ -34,6 +36,7 @@ func init() {
 		Use:   "types",
 		Short: "yangc with types format",
 		Run: func(cmd *cobra.Command, args []string) {
+			entries := doCompile(yangFileName)
 			doTypes(os.Stdout, entries)
 		},
 	}
