@@ -5,7 +5,7 @@ import (
 	"io"
 	"os"
 
-	"github.com/openconfig/goyang/pkg/yang"
+	"../pkg/yang"
 	"github.com/spf13/cobra"
 )
 
