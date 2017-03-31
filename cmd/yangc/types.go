@@ -29,7 +29,15 @@ var (
 )
 
 func init() {
-
+	typesVerbose = true
+	var typesCmd = &cobra.Command{
+		Use:   "types",
+		Short: "yangc with types format",
+		Run: func(cmd *cobra.Command, args []string) {
+			doTypes(os.Stdout, entries)
+		},
+	}
+	mainCmd.AddCommand(typesCmd)
 }
 
 func doTypes(w io.Writer, entries []*yang.Entry) {
