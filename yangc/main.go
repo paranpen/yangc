@@ -69,9 +69,8 @@ func doCompile(fileName string) []*yang.Entry {
 	sort.Strings(names)
 	entries = make([]*yang.Entry, len(names))
 	for x, n := range names {
-		fmt.Printf("- module[%s] ...\n", n)
+		// yang.PrintNode(os.Stdout, mods[n])
 		entries[x] = yang.ToEntry(mods[n])
-		// copy Typedef dictionary & return?
 	}
 	return entries
 }
