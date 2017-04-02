@@ -2,16 +2,30 @@
 module nodeb-system {
   namespace "lte";
   prefix "lte";
-  typedef enum-example-type {
+  typedef board-type {
     type enumeration {
         enum umc{
           value 0;
-          description "UMC";
+          description "enum UMC";
         }
         enum upc {
           value 1;
-          description "UPC";
+          description "enum UPC";
         }
     }
+  }
+
+  leaf board1 {
+    type board-type;
+    description "BOARD1";
+  }
+  leaf data2 {
+    type enumeration {
+        enum data1{
+          value 1;
+          description "enum DATA1";
+        }
+    }
+    description "enum DATA2";
   }
 }

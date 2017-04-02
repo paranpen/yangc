@@ -27,7 +27,7 @@ import (
 
 func init() {
 	var treeCmd = &cobra.Command{
-		Use:   "proto",
+		Use:   "tree",
 		Short: "yangc with tree format",
 		Run: func(cmd *cobra.Command, args []string) {
 			entries := doCompile(yangFileName)

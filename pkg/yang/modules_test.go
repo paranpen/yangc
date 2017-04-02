@@ -18,7 +18,7 @@ import (
 	"strings"
 	"testing"
 
-	"github.com/openconfig/goyang/pkg/yang"
+	"github.com/paranpen/yangc/pkg/yang"
 )
 
 var testdataFindModulesText = map[string]string{
