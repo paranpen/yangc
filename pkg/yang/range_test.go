@@ -14,7 +14,9 @@
 
 package yang
 
-import "testing"
+import (
+	"testing"
+)
 
 const (
 	useMin = -999
@@ -175,5 +177,29 @@ func TestCoalesce(t *testing.T) {
 		if !out.Equal(tt.out) {
 			t.Errorf("#%d: got %v, want %v", x, out, tt.out)
 		}
+	}
+}
+
+func TestYANGRangeDecimal64(t *testing.T) {
+	mod := `
+module test {
+  prefix test;
+  namespace urn:test;
+
+  leaf d64 {
+    type decimal64 {
+      fraction-digits 2;
+      range "-0.5 .. 1.0";
+    }
+  }
+
+}
+`
+
+	ms := NewModules()
+	ms.Parse(mod, "test.yang")
+	errs := ms.Process()
+	for i, err := range errs {
+		t.Errorf("error %d: %v", i, err)
 	}
 }
