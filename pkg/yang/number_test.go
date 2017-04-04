@@ -54,10 +54,10 @@ func TestNumberAdd(t *testing.T) {
 		add uint64
 		out Number
 	}{
-		{Number{Positive, 0}, 1, Number{Positive, 1}},
-		{Number{Negative, 1}, 1, Number{Positive, 0}},
-		{Number{Positive, 5}, 12, Number{Positive, 17}},
-		{Number{Negative, 3}, 10, Number{Positive, 7}},
+		{Number{Positive, 0, 0}, 1, Number{Positive, 1, 0}},
+		{Number{Negative, 1, 0}, 1, Number{Positive, 0, 0}},
+		{Number{Positive, 5, 0}, 12, Number{Positive, 17, 0}},
+		{Number{Negative, 3, 0}, 10, Number{Positive, 7, 0}},
 	} {
 		out := tt.in.add(tt.add)
 		if !out.Equal(tt.out) {

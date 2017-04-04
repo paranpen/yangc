@@ -18,11 +18,8 @@ package yang
 // to types (such as ranges, enums, etc).
 
 import (
-	"errors"
 	"fmt"
 	"sort"
-	"strconv"
-	"strings"
 )
 
 // This file handles interpretation of types
@@ -434,6 +431,7 @@ var baseTypes = map[string]*YangType{
 	},
 }
 
+/* twkim - move to number.go
 // These are the default ranges defined by the YANG standard.
 var (
 	Int8Range  = mustParseRanges("-128..127")
@@ -457,6 +455,7 @@ const (
 	MinEnum         = -1 << 31  // minimum value of an enum
 	MaxBitfieldSize = 1 << 32   // maximum number of bits in a bitfield
 )
+
 
 type NumberKind int
 
@@ -794,3 +793,4 @@ func (r YangRange) Contains(s YangRange) bool {
 	}
 	return true
 }
+*/
