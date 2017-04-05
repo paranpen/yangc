@@ -72,10 +72,64 @@ func printTypedef(w io.Writer, v *yang.Typedef) {
 	fmt.Fprintf(w, "}\n")
 }
 
-func printEnumType(w io.Writer, name string, n yang.Node) {
+func printEnumTypedef(w io.Writer, name string, n yang.Node) {
 	fmt.Fprintf(w, "typedef enum {\n")
-	printNodeTypedefs(w, n)
+	printEnumType(w, n)
 	fmt.Fprintf(w, "} %s;\n", name)
+}
+
+func printEnumType(w io.Writer, n yang.Node) {
+	v := reflect.ValueOf(n).Elem()
+	t := v.Type()
+	nf := t.NumField()
+	if n.Kind() == "enum" {
+		fmt.Fprintf(w, "%s = ", n.NName())
+	}
+Loop:
+	for i := nf - 1; i >= 0; i-- {
+		ft := t.Field(i)
+		yangStr := ft.Tag.Get("yang")
+		if yangStr == "" {
+			continue
+		}
+		parts := strings.Split(yangStr, ",")
+		for _, p := range parts[1:] {
+			if p == "nomerge" {
+				continue Loop
+			}
+		}
+		if parts[0][0] >= 'A' && parts[0][0] <= 'Z' {
+			continue
+		}
+		f := v.Field(i)
+		if !f.IsValid() || f.IsNil() {
+			continue
+		}
+		kind := ft.Type.Kind()
+		if kind == reflect.Slice {
+			sl := f.Len()
+			for i := 0; i < sl; i++ {
+				n = f.Index(i).Interface().(yang.Node)
+				if _, ok := n.(*yang.Value); !ok {
+					printEnumType(indent.NewWriter(w, "    "), n)
+					fmt.Fprintf(w, "\n")
+				}
+			}
+		} else if kind == reflect.Ptr {
+			// fmt.Printf("(%v , %v)", i, ft.Name)
+			if ft.Name == "Description" {
+				n = f.Interface().(yang.Node)
+				if v, ok := n.(*yang.Value); ok {
+					fmt.Fprintf(w, " // %s", v.Name)
+				}
+			} else if ft.Name == "Value" {
+				n = f.Interface().(yang.Node)
+				if v, ok := n.(*yang.Value); ok {
+					fmt.Fprintf(w, "%s ", v.Name)
+				}
+			}
+		}
+	}
 }
 
 // printTypedefs prints node n to w, recursively.
@@ -92,7 +146,7 @@ func printNodeTypedefs(w io.Writer, n yang.Node) {
 		name := n.NName()
 		n = yang.ChildNode(n, "enumeration")
 		if n != nil {
-			printEnumType(w, name, n)
+			printEnumTypedef(w, name, n)
 		}
 		return
 	case "enum":
@@ -101,7 +155,7 @@ func printNodeTypedefs(w io.Writer, n yang.Node) {
 		name := n.NName()
 		n = yang.ChildNode(n, "enumeration")
 		if n != nil {
-			printEnumType(w, name, n)
+			printEnumTypedef(w, name, n)
 		}
 		return
 	case "list":

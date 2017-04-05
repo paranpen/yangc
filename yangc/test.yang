@@ -6,7 +6,6 @@ module nodeb-system {
     type enumeration {
         enum umc{
           value 0;
-          description "enum UMC";
         }
         enum upc {
           value 1;
