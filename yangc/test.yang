@@ -14,17 +14,20 @@ module nodeb-system {
     }
   }
 
-  leaf board1 {
-    type board-type;
-    description "BOARD1";
-  }
-  leaf data2 {
-    type enumeration {
-        enum data1{
-          value 1;
-          description "enum DATA1";
-        }
+  list table {
+    key board-id;
+    leaf board-id {
+      type enumeration {
+          enum BOARD_ID1 {
+            value 1;
+            description "enum BOARD_ID1";
+          }
+      }
+      description "what is board-id?";
     }
-    description "enum DATA2";
+    leaf board1 {
+      type board-type;
+      description "BOARD1";
+    }
   }
 }
