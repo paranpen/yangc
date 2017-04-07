@@ -50,15 +50,37 @@ func init() {
 			doEnum(os.Stdout, entries)
 		},
 	}
-	mainCmd.AddCommand(typesCmd, enumCmd)
+	var tableCmd = &cobra.Command{
+		Use:   "table",
+		Short: "yangc to generate C struct files",
+		Run: func(cmd *cobra.Command, args []string) {
+			entries := doCompile(yangFileName)
+			doTable(os.Stdout, entries)
+		},
+	}
+	mainCmd.AddCommand(typesCmd, enumCmd, tableCmd)
 }
 
-// doenum generate enum file from node tree
+// doTable generate enum file from node tree
+func doTable(w io.Writer, entries []*yang.Entry) {
+	for _, e := range entries {
+		if len(e.Dir) == 0 {
+			// skip modules that have nothing in them
+			continue
+		}
+		pf := &protofile{
+			fixedNames: map[string]string{},
+			messages:   map[string]*messageInfo{},
+		}
+		pf.printHeader(w, e)
+		for _, child := range children(e) {
+			pf.printListNodes(w, child, true)
+		}
+	}
+}
+
+// doEnum generate enum file from node tree
 func doEnum(w io.Writer, entries []*yang.Entry) {
-	/* tds := yang.TypeDict.Typedefs()
-	for _, v := range tds {
-		printTypedef(w, v)
-	} */
 	for _, e := range entries {
 		printNodeTypedefs(w, e.Node)
 	}
@@ -306,4 +328,44 @@ func showall(w io.Writer, e *yang.Entry) {
 	for _, d := range e.Dir {
 		showall(w, d)
 	}
+}
+
+// C Struct generation from Yang List
+// printListNodes print list nodes (by twkim)
+func (pf *protofile) printListNodes(w io.Writer, e *yang.Entry, nest bool) {
+	if e.Description != "" {
+		fmt.Fprintln(indent.NewWriter(w, "// "), e.Description)
+	}
+
+	messageName := pf.fullName(e)
+	mi := pf.messages[messageName]
+	if mi == nil {
+		mi = &messageInfo{
+			fields: map[string]int{},
+		}
+		pf.messages[messageName] = mi
+	}
+
+	fmt.Fprintf(w, "struct %s {\n", pf.messageName(e)) // matching brace }
+
+	nodes := children(e)
+	for _, se := range nodes {
+		k := se.Name
+		if se.Description != "" {
+			fmt.Fprintln(indent.NewWriter(w, "  // "), se.Description)
+		}
+		if nest && (len(se.Dir) > 0 || se.Type == nil) {
+			pf.printNode(indent.NewWriter(w, "  "), se, true)
+		}
+		name := pf.fieldName(k)
+		kind := kind2proto[se.Type.Kind]
+		fmt.Fprintf(w, "%s %s;", kind, name)
+		if protoWithSource {
+			fmt.Fprintf(w, " // %s", yang.Source(se.Node))
+		}
+		fmt.Fprintln(w)
+	}
+
+	// { to match the brace below to keep brace matching working
+	fmt.Fprintln(w, "}")
 }

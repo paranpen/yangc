@@ -2,13 +2,14 @@
 module nodeb-system {
   namespace "lte";
   prefix "lte";
+  description "test yang module";
   typedef board-type {
     type enumeration {
         enum umc{
-          value 0;
+          value 7;
         }
         enum upc {
-          value 1;
+          value 9;
           description "enum UPC";
         }
     }
