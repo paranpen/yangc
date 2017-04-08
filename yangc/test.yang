@@ -30,5 +30,9 @@ module nodeb-system {
       type board-type;
       description "BOARD1";
     }
+    leaf board-name {
+      type string;
+      description "NAME...";
+    }
   }
 }

@@ -330,6 +330,31 @@ func showall(w io.Writer, e *yang.Entry) {
 	}
 }
 
+// kind2proto maps base yang types to protocol buffer types.
+// TODO(borman): do TODO types.
+var kind2header = map[yang.TypeKind]string{
+	yang.Yint8:   "int32",  // int in range [-128, 127]
+	yang.Yint16:  "int32",  // int in range [-32768, 32767]
+	yang.Yint32:  "int32",  // int in range [-2147483648, 2147483647]
+	yang.Yint64:  "int64",  // int in range [-9223372036854775808, 9223372036854775807]
+	yang.Yuint8:  "uint32", // int in range [0, 255]
+	yang.Yuint16: "uint32", // int in range [0, 65535]
+	yang.Yuint32: "uint32", // int in range [0, 4294967295]
+	yang.Yuint64: "uint64", // int in range [0, 18446744073709551615]
+
+	yang.Ybinary:             "bytes",       // arbitrary data
+	yang.Ybits:               "INLINE-bits", // set of bits or flags
+	yang.Ybool:               "bool",        // true or false
+	yang.Ydecimal64:          "INLINE-d64",  // signed decimal number
+	yang.Yempty:              "bool",        // value is its presense
+	yang.Yenum:               "enum",        // enumerated strings
+	yang.Yidentityref:        "string",      // reference to abstract identity
+	yang.YinstanceIdentifier: "string",      // reference of a data tree node
+	yang.Yleafref:            "string",      // reference to a leaf instance
+	yang.Ystring:             "string",      // human readable string
+	yang.Yunion:              "union",       // handled inline
+}
+
 // C Struct generation from Yang List
 // printListNodes print list nodes (by twkim)
 func (pf *protofile) printListNodes(w io.Writer, e *yang.Entry, nest bool) {
@@ -358,11 +383,8 @@ func (pf *protofile) printListNodes(w io.Writer, e *yang.Entry, nest bool) {
 			pf.printNode(indent.NewWriter(w, "  "), se, true)
 		}
 		name := pf.fieldName(k)
-		kind := kind2proto[se.Type.Kind]
-		fmt.Fprintf(w, "%s %s;", kind, name)
-		if protoWithSource {
-			fmt.Fprintf(w, " // %s", yang.Source(se.Node))
-		}
+		kind := kind2header[se.Type.Kind]
+		fmt.Fprintf(w, "  %s %s;", kind, name)
 		fmt.Fprintln(w)
 	}
 

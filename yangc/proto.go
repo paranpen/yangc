@@ -190,7 +190,7 @@ func children(e *yang.Entry) []*yang.Entry {
 	if len(names) == 0 {
 		return nil
 	}
-	sort.Strings(names)
+	// sort.Strings(names)
 	children := make([]*yang.Entry, len(names))
 	for x, n := range names {
 		children[x] = e.Dir[n]
