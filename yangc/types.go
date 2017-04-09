@@ -36,15 +36,16 @@ func init() {
 	typesVerbose = true
 	var typesCmd = &cobra.Command{
 		Use:   "types",
-		Short: "yangc with types format",
+		Short: "yangc go generate all types in C format",
 		Run: func(cmd *cobra.Command, args []string) {
 			entries := doCompile(yangFileName)
 			doTypes(os.Stdout, entries)
 		},
 	}
+	mainCmd.AddCommand(typesCmd)
 	var enumCmd = &cobra.Command{
 		Use:   "enum",
-		Short: "yangc to generate C enum files",
+		Short: "yangc to generate enum in C format",
 		Run: func(cmd *cobra.Command, args []string) {
 			entries := doCompile(yangFileName)
 			doEnum(os.Stdout, entries)
@@ -52,13 +53,32 @@ func init() {
 	}
 	var tableCmd = &cobra.Command{
 		Use:   "table",
-		Short: "yangc to generate C struct files",
+		Short: "yangc to generate table struct in C format",
 		Run: func(cmd *cobra.Command, args []string) {
 			entries := doCompile(yangFileName)
 			doTable(os.Stdout, entries)
 		},
 	}
-	mainCmd.AddCommand(typesCmd, enumCmd, tableCmd)
+	typesCmd.AddCommand(enumCmd, tableCmd)
+}
+
+// doTypes generate all types from entries tree
+func doTypes(w io.Writer, entries []*yang.Entry) {
+	types := Types{}
+	for _, e := range entries {
+		types.AddEntry(e)
+	}
+	for t := range types {
+		printType(w, t, typesVerbose)
+	}
+}
+
+// doEnum generate enum file from node tree
+func doEnum(w io.Writer, entries []*yang.Entry) {
+	//enums := EnumType{}
+	for _, e := range entries {
+		printNodeTypedefs(w, e.Node)
+	}
 }
 
 // doTable generate enum file from node tree
@@ -79,14 +99,7 @@ func doTable(w io.Writer, entries []*yang.Entry) {
 	}
 }
 
-// doEnum generate enum file from node tree
-func doEnum(w io.Writer, entries []*yang.Entry) {
-	for _, e := range entries {
-		printNodeTypedefs(w, e.Node)
-	}
-}
-
-// Print type dictionary (by twkim)
+// Print type dictionary (by taewony)
 func printTypedef(w io.Writer, v *yang.Typedef) {
 	// case enumeration
 	kind := (*v.YangType).Kind
@@ -237,22 +250,6 @@ Loop:
 	}
 }
 
-func doTypes(w io.Writer, entries []*yang.Entry) {
-	types := Types{}
-	for _, e := range entries {
-		types.AddEntry(e)
-	}
-
-	for t := range types {
-		printType(w, t, typesVerbose)
-	}
-	if typesDebug {
-		for _, e := range entries {
-			showall(w, e)
-		}
-	}
-}
-
 // Types keeps track of all the YangTypes defined.
 type Types map[*yang.YangType]struct{}
 
@@ -356,8 +353,11 @@ var kind2header = map[yang.TypeKind]string{
 }
 
 // C Struct generation from Yang List
-// printListNodes print list nodes (by twkim)
+// printListNodes print list nodes (by taewony)
 func (pf *protofile) printListNodes(w io.Writer, e *yang.Entry, nest bool) {
+	if e.GetKind() == "Typedef" { // taewony
+		return
+	}
 	if e.Description != "" {
 		fmt.Fprintln(indent.NewWriter(w, "// "), e.Description)
 	}

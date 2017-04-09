@@ -183,7 +183,7 @@ message Decimal64 {
 func children(e *yang.Entry) []*yang.Entry {
 	var names []string
 	for k, se := range e.Dir {
-		if se.RPC == nil {
+		if se.RPC == nil && se.GetKind() != "Typedef" { // taewony
 			names = append(names, k)
 		}
 	}

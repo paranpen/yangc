@@ -127,6 +127,9 @@ func (e *Entry) Print(w io.Writer) {
 		fmt.Fprintln(w)
 		fmt.Fprintln(indent.NewWriter(w, "// "), e.Description)
 	}
+	if e.Kind == TypedefEntry {
+		fmt.Fprintf(w, "typedef\n")
+	}
 	if e.ReadOnly() {
 		fmt.Fprintf(w, "RO: ")
 	} else {
@@ -174,6 +177,7 @@ const (
 	InputEntry
 	NotificationEntry
 	OutputEntry
+	TypedefEntry // taewony
 )
 
 // EntryKindToName maps EntryKind to their names
@@ -186,6 +190,7 @@ var EntryKindToName = map[EntryKind]string{
 	InputEntry:        "Input",
 	NotificationEntry: "Notification",
 	OutputEntry:       "Output",
+	TypedefEntry:      "Typedef", // taewony
 }
 
 func (k EntryKind) String() string {
@@ -193,6 +198,11 @@ func (k EntryKind) String() string {
 		return s
 	}
 	return fmt.Sprintf("unknown-entry-%d", k)
+}
+
+// GetKind return kind string
+func (e *Entry) GetKind() string {
+	return EntryKindToName[e.Kind]
 }
 
 // newDirectory returns an empty directory Entry.
@@ -210,6 +220,16 @@ func newDirectory(n Node) *Entry {
 func newLeaf(n Node) *Entry {
 	return &Entry{
 		Kind:  LeafEntry,
+		Node:  n,
+		Name:  n.NName(),
+		Extra: map[string][]interface{}{},
+	}
+}
+
+// newTypedef returns an typedef leaf Entry.
+func newTypedef(n Node) *Entry {
+	return &Entry{
+		Kind:  TypedefEntry,
 		Node:  n,
 		Name:  n.NName(),
 		Extra: map[string][]interface{}{},
@@ -369,6 +389,13 @@ func ToEntry(n Node) (e *Entry) {
 
 	// Handle non-directory nodes (leaf, leafref, and oddly enough, uses).
 	switch s := n.(type) {
+	case *Typedef: // taewony
+		e := newTypedef(n)
+		if s.Description != nil {
+			e.Description = s.Description.Name
+		}
+		entryCache[n] = e
+		return e
 	case *Leaf:
 		e := newLeaf(n)
 		if errs := s.Type.resolve(); errs != nil {
@@ -609,9 +636,12 @@ func ToEntry(n Node) (e *Entry) {
 
 		// Keywords that do not need to be handled as an Entry as they are added
 		// to other dictionaries.
-		case "default",
-			"typedef":
+		case "default":
 			continue
+		case "typedef": // taewony
+			for _, a := range fv.Interface().([]*Typedef) {
+				e.add(a.Name, ToEntry(a))
+			}
 		case "deviation":
 			if a := fv.Interface().([]*Deviation); a != nil {
 				for _, d := range a {

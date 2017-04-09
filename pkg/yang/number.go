@@ -61,7 +61,7 @@ const (
 type Number struct {
 	Kind    NumberKind
 	Value   uint64
-	Decimal float64
+	Decimal float64 // taewony
 }
 
 var maxNumber = Number{Kind: MaxNumber}
@@ -115,7 +115,7 @@ func ParseNumber(s string) (n Number, err error) {
 	}
 
 	// strip the insignificant digits for more accurate comparisons.
-	dec, err := strconv.ParseFloat(s, 64)
+	dec, err := strconv.ParseFloat(s, 64) // taewony
 
 	n.Value = uint64(dec)
 	n.Decimal = dec

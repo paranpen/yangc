@@ -431,7 +431,7 @@ var baseTypes = map[string]*YangType{
 	},
 }
 
-/* twkim - move to number.go
+/* taewony - move to number.go
 // These are the default ranges defined by the YANG standard.
 var (
 	Int8Range  = mustParseRanges("-128..127")

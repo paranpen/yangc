@@ -61,6 +61,8 @@ func Write(w io.Writer, e *yang.Entry) {
 		fmt.Fprintln(w, "}")
 	}
 	switch {
+	case e.GetKind() == "Typedef":
+		fmt.Fprintf(w, "typedef: ")
 	case e.RPC != nil:
 		fmt.Fprintf(w, "RPC: ")
 	case e.ReadOnly():
