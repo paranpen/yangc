@@ -39,12 +39,12 @@ func init() {
 
 func doTree(w io.Writer, entries []*yang.Entry) {
 	for _, e := range entries {
-		Write(w, e)
+		WriteTree(w, e)
 	}
 }
 
-// Write writes e, formatted, and all of its children, to w.
-func Write(w io.Writer, e *yang.Entry) {
+// WriteTree writes e, formatted, and all of its children, to w.
+func WriteTree(w io.Writer, e *yang.Entry) {
 	if e.Description != "" {
 		fmt.Fprintln(w)
 		fmt.Fprintln(indent.NewWriter(w, "// "), e.Description)
@@ -91,10 +91,10 @@ func Write(w io.Writer, e *yang.Entry) {
 	}
 	if r := e.RPC; r != nil {
 		if r.Input != nil {
-			Write(indent.NewWriter(w, "  "), r.Input)
+			WriteTree(indent.NewWriter(w, "  "), r.Input)
 		}
 		if r.Output != nil {
-			Write(indent.NewWriter(w, "  "), r.Output)
+			WriteTree(indent.NewWriter(w, "  "), r.Output)
 		}
 	}
 	var names []string
@@ -103,7 +103,7 @@ func Write(w io.Writer, e *yang.Entry) {
 	}
 	sort.Strings(names)
 	for _, k := range names {
-		Write(indent.NewWriter(w, "  "), e.Dir[k])
+		WriteTree(indent.NewWriter(w, "  "), e.Dir[k])
 	}
 	// { to match the brace below to keep brace matching working
 	fmt.Fprintln(w, "}")
