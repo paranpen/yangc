@@ -396,8 +396,6 @@ func (pf *protofile) printService(w io.Writer, e *yang.Entry) {
 
 // printNode writes e, formatted almost like a protobuf message, to w.
 func (pf *protofile) printNode(w io.Writer, e *yang.Entry, nest bool) {
-	nodes := children(e)
-
 	if !protoNoComments && e.Description != "" {
 		fmt.Fprintln(indent.NewWriter(w, "// "), e.Description)
 	}
@@ -417,6 +415,7 @@ func (pf *protofile) printNode(w io.Writer, e *yang.Entry, nest bool) {
 	}
 	fmt.Fprintln(w)
 
+	nodes := children(e)
 	for i, se := range nodes {
 		k := se.Name
 		if !protoNoComments && se.Description != "" {

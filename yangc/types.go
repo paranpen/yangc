@@ -71,14 +71,34 @@ func doTypes(w io.Writer, entries []*yang.Entry) {
 		}
 	} */
 	for _, e := range entries {
-		WriteTypedefs(w, e, true)
+		if len(e.Dir) == 0 {
+			continue // skip modules that have nothing in them
+		}
+		pf := &protofile{
+			fixedNames: map[string]string{},
+			messages:   map[string]*messageInfo{},
+		}
+		pf.printHeader(w, e)
+		for _, se := range e.Dir {
+			pf.WriteTypedefs(w, se, true)
+		}
 	}
 }
 
 // doEnum generate enum file from node tree
 func doEnum(w io.Writer, entries []*yang.Entry) {
 	for _, e := range entries {
-		WriteTypedefs(w, e, false)
+		if len(e.Dir) == 0 {
+			continue // skip modules that have nothing in them
+		}
+		pf := &protofile{
+			fixedNames: map[string]string{},
+			messages:   map[string]*messageInfo{},
+		}
+		pf.printHeader(w, e)
+		for _, se := range e.Dir {
+			pf.WriteTypedefs(w, se, false)
+		}
 	}
 }
 
@@ -101,7 +121,7 @@ func doTable(w io.Writer, entries []*yang.Entry) {
 }
 
 // WriteTypedefs print all typedefs
-func WriteTypedefs(w io.Writer, e *yang.Entry, showAll bool) {
+func (pf *protofile) WriteTypedefs(w io.Writer, e *yang.Entry, showAll bool) {
 	if e.GetKind() == "Typedef" {
 		printNodeTypedef(w, e.Node)
 	}
@@ -110,7 +130,7 @@ func WriteTypedefs(w io.Writer, e *yang.Entry, showAll bool) {
 		names = append(names, k)
 	}
 	for _, k := range names {
-		WriteTypedefs(indent.NewWriter(w, "  "), e.Dir[k], showAll)
+		pf.WriteTypedefs(indent.NewWriter(w, "  "), e.Dir[k], showAll)
 	}
 }
 
@@ -265,7 +285,7 @@ func (t Types) AddEntry(e *yang.Entry) {
 	}
 }
 
-// printType prints type t in a moderately human readable format to w.
+/* printType prints type t in a moderately human readable format to w.
 func printType(w io.Writer, t *yang.YangType, verbose bool) {
 	if verbose && t.Base != nil {
 		base := yang.Source(t.Base)
@@ -324,7 +344,7 @@ func showall(w io.Writer, e *yang.Entry) {
 	for _, d := range e.Dir {
 		showall(w, d)
 	}
-}
+} */
 
 // kind2proto maps base yang types to protocol buffer types.
 // TODO(borman): do TODO types.
