@@ -78,7 +78,7 @@ func doTypes(w io.Writer, entries []*yang.Entry) {
 			fixedNames: map[string]string{},
 			messages:   map[string]*messageInfo{},
 		}
-		pf.printHeader(w, e)
+		pf.printHeader(w, e, false)
 		for _, se := range e.Dir {
 			pf.WriteTypedefs(w, se, true)
 		}
@@ -95,7 +95,7 @@ func doEnum(w io.Writer, entries []*yang.Entry) {
 			fixedNames: map[string]string{},
 			messages:   map[string]*messageInfo{},
 		}
-		pf.printHeader(w, e)
+		pf.printHeader(w, e, false)
 		for _, se := range e.Dir {
 			pf.WriteTypedefs(w, se, false)
 		}
@@ -113,25 +113,92 @@ func doTable(w io.Writer, entries []*yang.Entry) {
 			fixedNames: map[string]string{},
 			messages:   map[string]*messageInfo{},
 		}
-		pf.printHeader(w, e)
+		pf.printHeader(w, e, false)
 		for _, child := range children(e) {
 			pf.printListNodes(w, child, true)
 		}
 	}
 }
 
+// Children returns all the children nodes of e that are not RPC nodes.
+func childrenNodes(e *yang.Entry) []*yang.Entry {
+	var names []string
+	for k, se := range e.Dir {
+		if se.RPC == nil {
+			names = append(names, k)
+		}
+	}
+	if len(names) == 0 {
+		return nil
+	}
+	// sort.Strings(names)
+	children := make([]*yang.Entry, len(names))
+	for x, n := range names {
+		children[x] = e.Dir[n]
+	}
+	return children
+}
+
 // WriteTypedefs print all typedefs
 func (pf *protofile) WriteTypedefs(w io.Writer, e *yang.Entry, showAll bool) {
+	if e.Description != "" {
+		fmt.Fprintln(indent.NewWriter(w, "// "), e.Description)
+	}
+
+	messageName := pf.fullName(e)
+	mi := pf.messages[messageName]
+	if mi == nil {
+		mi = &messageInfo{
+			fields: map[string]int{},
+		}
+		pf.messages[messageName] = mi
+	}
 	if e.GetKind() == "Typedef" {
-		printNodeTypedef(w, e.Node)
+		fmt.Fprintf(w, "typedef %s {\n", pf.messageName(e)) // matching brace }
+		// printNodeTypedef(w, e.Node)
+	} else {
+		fmt.Fprintf(w, "struct %s {\n", pf.messageName(e)) // matching brace }
 	}
-	var names []string
-	for k := range e.Dir {
-		names = append(names, k)
+
+	nodes := childrenNodes(e)
+	for _, se := range nodes {
+		k := se.Name
+		if se.Description != "" {
+			fmt.Fprintln(indent.NewWriter(w, "  // "), se.Description)
+		}
+		if len(se.Dir) > 0 || se.Type == nil {
+			pf.WriteTypedefs(indent.NewWriter(w, "  "), se, showAll)
+		}
+		prefix := "  "
+		if se.ListAttr != nil {
+			prefix = "  repeated "
+		}
+		name := pf.fieldName(k)
+		printed := false
+		var kind string
+		if len(se.Dir) > 0 || se.Type == nil {
+			kind = pf.messageName(se)
+		} else if se.Type.Kind == yang.Yenum {
+			kind = pf.fixName(se.Name)
+			fmt.Fprintf(w, "  enum %s {", kind)
+			if protoWithSource {
+				fmt.Fprintf(w, " // %s", yang.Source(se.Node))
+			}
+			fmt.Fprintln(w)
+
+			for i, n := range se.Type.Enum.Names() {
+				fmt.Fprintf(w, "    %s_%s = %d;\n", kind, strings.ToUpper(pf.fieldName(n)), i)
+			}
+			fmt.Fprintf(w, "  };\n")
+		} else {
+			kind = kind2proto[se.Type.Kind]
+		}
+		if !printed {
+			fmt.Fprintf(w, "%s%s %s = %d;\n", prefix, kind, name, mi.tag(name, kind, se.ListAttr != nil))
+		}
 	}
-	for _, k := range names {
-		pf.WriteTypedefs(indent.NewWriter(w, "  "), e.Dir[k], showAll)
-	}
+	// { to match the brace below to keep brace matching working
+	fmt.Fprintln(w, "}")
 }
 
 // printTypedefs prints node n to w, recursively.
