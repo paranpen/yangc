@@ -26,22 +26,46 @@ import (
 	"github.com/spf13/cobra"
 )
 
+// kind2header maps base yang types to C types.
+var kind2header = map[yang.TypeKind]string{
+	yang.Yint8:   "int32",  // int in range [-128, 127]
+	yang.Yint16:  "int32",  // int in range [-32768, 32767]
+	yang.Yint32:  "int32",  // int in range [-2147483648, 2147483647]
+	yang.Yint64:  "int64",  // int in range [-9223372036854775808, 9223372036854775807]
+	yang.Yuint8:  "uint32", // int in range [0, 255]
+	yang.Yuint16: "uint32", // int in range [0, 65535]
+	yang.Yuint32: "uint32", // int in range [0, 4294967295]
+	yang.Yuint64: "uint64", // int in range [0, 18446744073709551615]
+
+	yang.Ybinary:             "bytes",       // arbitrary data
+	yang.Ybits:               "INLINE-bits", // set of bits or flags
+	yang.Ybool:               "bool",        // true or false
+	yang.Ydecimal64:          "INLINE-d64",  // signed decimal number
+	yang.Yempty:              "bool",        // value is its presense
+	yang.Yenum:               "enum",        // enumerated strings
+	yang.Yidentityref:        "string",      // reference to abstract identity
+	yang.YinstanceIdentifier: "string",      // reference of a data tree node
+	yang.Yleafref:            "string",      // reference to a leaf instance
+	yang.Ystring:             "string",      // human readable string
+	yang.Yunion:              "union",       // handled inline
+}
+
 func init() {
-	var typesCmd = &cobra.Command{
-		Use:   "types",
+	var headerCmd = &cobra.Command{
+		Use:   "header",
 		Short: "yangc go generate all types in C format",
 		Run: func(cmd *cobra.Command, args []string) {
 			entries := doCompile(yangFileName)
-			doTypes(os.Stdout, entries)
+			doHeader(os.Stdout, entries)
 		},
 	}
-	mainCmd.AddCommand(typesCmd)
-	var enumCmd = &cobra.Command{
-		Use:   "enum",
-		Short: "yangc to generate enum in C format",
+	mainCmd.AddCommand(headerCmd)
+	var typeCmd = &cobra.Command{
+		Use:   "type",
+		Short: "yangc to generate enum types in C format",
 		Run: func(cmd *cobra.Command, args []string) {
 			entries := doCompile(yangFileName)
-			doEnum(os.Stdout, entries)
+			doType(os.Stdout, entries)
 		},
 	}
 	var tableCmd = &cobra.Command{
@@ -52,11 +76,24 @@ func init() {
 			doTable(os.Stdout, entries)
 		},
 	}
-	typesCmd.AddCommand(enumCmd, tableCmd)
+	headerCmd.AddCommand(typeCmd, tableCmd)
 }
 
-// doTypes generate all types from entries tree
-func doTypes(w io.Writer, entries []*yang.Entry) {
+// doHeader generate all types from entries tree
+func doHeader(w io.Writer, entries []*yang.Entry) {
+	for _, e := range entries {
+		if len(e.Dir) == 0 {
+			continue // skip modules that have nothing in them
+		}
+		pf := &protofile{
+			fixedNames: map[string]string{},
+			messages:   map[string]*messageInfo{},
+		}
+		pf.printHeader(w, e, false)
+		for _, se := range e.Dir {
+			pf.WriteHeaders(w, se, true, true)
+		}
+	}
 	/* types := Types{}
 	for _, e := range entries {
 		types.AddEntry(e)
@@ -70,23 +107,10 @@ func doTypes(w io.Writer, entries []*yang.Entry) {
 			showall(w, e)
 		}
 	} */
-	for _, e := range entries {
-		if len(e.Dir) == 0 {
-			continue // skip modules that have nothing in them
-		}
-		pf := &protofile{
-			fixedNames: map[string]string{},
-			messages:   map[string]*messageInfo{},
-		}
-		pf.printHeader(w, e, false)
-		for _, se := range e.Dir {
-			pf.WriteTypedefs(w, se, true)
-		}
-	}
 }
 
 // doEnum generate enum file from node tree
-func doEnum(w io.Writer, entries []*yang.Entry) {
+func doType(w io.Writer, entries []*yang.Entry) {
 	for _, e := range entries {
 		if len(e.Dir) == 0 {
 			continue // skip modules that have nothing in them
@@ -97,7 +121,7 @@ func doEnum(w io.Writer, entries []*yang.Entry) {
 		}
 		pf.printHeader(w, e, false)
 		for _, se := range e.Dir {
-			pf.WriteTypedefs(w, se, false)
+			pf.WriteHeaders(w, se, true, false)
 		}
 	}
 }
@@ -114,14 +138,14 @@ func doTable(w io.Writer, entries []*yang.Entry) {
 			messages:   map[string]*messageInfo{},
 		}
 		pf.printHeader(w, e, false)
-		for _, child := range children(e) {
-			pf.printListNodes(w, child, true)
+		for _, se := range e.Dir {
+			pf.WriteHeaders(w, se, false, true)
 		}
 	}
 }
 
 // Children returns all the children nodes of e that are not RPC nodes.
-func childrenNodes(e *yang.Entry) []*yang.Entry {
+func childrenEntries(e *yang.Entry) []*yang.Entry {
 	var names []string
 	for k, se := range e.Dir {
 		if se.RPC == nil {
@@ -140,11 +164,7 @@ func childrenNodes(e *yang.Entry) []*yang.Entry {
 }
 
 // WriteTypedefs print all typedefs
-func (pf *protofile) WriteTypedefs(w io.Writer, e *yang.Entry, showAll bool) {
-	if e.Description != "" {
-		fmt.Fprintln(indent.NewWriter(w, "// "), e.Description)
-	}
-
+func (pf *protofile) WriteHeaders(w io.Writer, e *yang.Entry, typePrint bool, listPrint bool) {
 	messageName := pf.fullName(e)
 	mi := pf.messages[messageName]
 	if mi == nil {
@@ -153,52 +173,65 @@ func (pf *protofile) WriteTypedefs(w io.Writer, e *yang.Entry, showAll bool) {
 		}
 		pf.messages[messageName] = mi
 	}
+
 	if e.GetKind() == "Typedef" {
-		fmt.Fprintf(w, "typedef %s {\n", pf.messageName(e)) // matching brace }
-		// printNodeTypedef(w, e.Node)
-	} else {
+		if typePrint {
+			if e.Description != "" {
+				fmt.Fprintln(indent.NewWriter(w, "\n// "), e.Description)
+			}
+			fmt.Fprintf(w, "typedef %s {\n", pf.messageName(e)) // matching brace }
+			printNodeTypedef(w, e.Node)
+			fmt.Fprintf(w, "}\n") // { to match the brace below to keep brace matching working
+		}
+		return
+	}
+
+	if listPrint {
+		if e.Description != "" {
+			fmt.Fprintln(indent.NewWriter(w, "\n// "), e.Description)
+		}
 		fmt.Fprintf(w, "struct %s {\n", pf.messageName(e)) // matching brace }
 	}
 
-	nodes := childrenNodes(e)
+	nodes := childrenEntries(e)
 	for _, se := range nodes {
-		k := se.Name
-		if se.Description != "" {
-			fmt.Fprintln(indent.NewWriter(w, "  // "), se.Description)
-		}
-		if len(se.Dir) > 0 || se.Type == nil {
-			pf.WriteTypedefs(indent.NewWriter(w, "  "), se, showAll)
-		}
-		prefix := "  "
-		if se.ListAttr != nil {
-			prefix = "  repeated "
-		}
-		name := pf.fieldName(k)
-		printed := false
 		var kind string
-		if len(se.Dir) > 0 || se.Type == nil {
-			kind = pf.messageName(se)
-		} else if se.Type.Kind == yang.Yenum {
-			kind = pf.fixName(se.Name)
-			fmt.Fprintf(w, "  enum %s {", kind)
-			if protoWithSource {
-				fmt.Fprintf(w, " // %s", yang.Source(se.Node))
-			}
-			fmt.Fprintln(w)
+		if se.Type.Kind == yang.Yenum {
+			if typePrint {
+				kind = pf.fixName(se.Name)
+				fmt.Fprintf(w, "  enum %s {", kind)
+				if protoWithSource {
+					fmt.Fprintf(w, " // %s", yang.Source(se.Node))
+				}
+				fmt.Fprintln(w)
 
-			for i, n := range se.Type.Enum.Names() {
-				fmt.Fprintf(w, "    %s_%s = %d;\n", kind, strings.ToUpper(pf.fieldName(n)), i)
+				for i, n := range se.Type.Enum.Names() {
+					fmt.Fprintf(w, "    %s_%s = %d;\n", kind, strings.ToUpper(pf.fieldName(n)), i)
+				}
+				fmt.Fprintf(w, "  };\n")
 			}
-			fmt.Fprintf(w, "  };\n")
 		} else {
-			kind = kind2proto[se.Type.Kind]
-		}
-		if !printed {
-			fmt.Fprintf(w, "%s%s %s = %d;\n", prefix, kind, name, mi.tag(name, kind, se.ListAttr != nil))
+			if listPrint {
+				if se.Description != "" {
+					fmt.Fprintln(indent.NewWriter(w, "  // "), se.Description)
+				}
+				if len(se.Dir) > 0 || se.Type == nil {
+					pf.WriteHeaders(indent.NewWriter(w, "  "), se, typePrint, listPrint)
+				}
+				if len(se.Dir) > 0 || se.Type == nil {
+					kind = pf.messageName(se)
+				} else {
+					kind = kind2proto[se.Type.Kind]
+				}
+				k := se.Name
+				name := pf.fieldName(k)
+				fmt.Fprintf(w, "%s %s = %d;\n", kind, name, mi.tag(name, kind, se.ListAttr != nil))
+			}
 		}
 	}
-	// { to match the brace below to keep brace matching working
-	fmt.Fprintln(w, "}")
+	if listPrint {
+		fmt.Fprintln(w, "}") // { to match the brace below to keep brace matching working
+	}
 }
 
 // printTypedefs prints node n to w, recursively.
@@ -412,68 +445,3 @@ func showall(w io.Writer, e *yang.Entry) {
 		showall(w, d)
 	}
 } */
-
-// kind2proto maps base yang types to protocol buffer types.
-// TODO(borman): do TODO types.
-var kind2header = map[yang.TypeKind]string{
-	yang.Yint8:   "int32",  // int in range [-128, 127]
-	yang.Yint16:  "int32",  // int in range [-32768, 32767]
-	yang.Yint32:  "int32",  // int in range [-2147483648, 2147483647]
-	yang.Yint64:  "int64",  // int in range [-9223372036854775808, 9223372036854775807]
-	yang.Yuint8:  "uint32", // int in range [0, 255]
-	yang.Yuint16: "uint32", // int in range [0, 65535]
-	yang.Yuint32: "uint32", // int in range [0, 4294967295]
-	yang.Yuint64: "uint64", // int in range [0, 18446744073709551615]
-
-	yang.Ybinary:             "bytes",       // arbitrary data
-	yang.Ybits:               "INLINE-bits", // set of bits or flags
-	yang.Ybool:               "bool",        // true or false
-	yang.Ydecimal64:          "INLINE-d64",  // signed decimal number
-	yang.Yempty:              "bool",        // value is its presense
-	yang.Yenum:               "enum",        // enumerated strings
-	yang.Yidentityref:        "string",      // reference to abstract identity
-	yang.YinstanceIdentifier: "string",      // reference of a data tree node
-	yang.Yleafref:            "string",      // reference to a leaf instance
-	yang.Ystring:             "string",      // human readable string
-	yang.Yunion:              "union",       // handled inline
-}
-
-// C Struct generation from Yang List
-// printListNodes print list nodes (by taewony)
-func (pf *protofile) printListNodes(w io.Writer, e *yang.Entry, nest bool) {
-	if e.GetKind() == "Typedef" { // taewony
-		return
-	}
-	if e.Description != "" {
-		fmt.Fprintln(indent.NewWriter(w, "// "), e.Description)
-	}
-
-	messageName := pf.fullName(e)
-	mi := pf.messages[messageName]
-	if mi == nil {
-		mi = &messageInfo{
-			fields: map[string]int{},
-		}
-		pf.messages[messageName] = mi
-	}
-
-	fmt.Fprintf(w, "struct %s {\n", pf.messageName(e)) // matching brace }
-
-	nodes := children(e)
-	for _, se := range nodes {
-		k := se.Name
-		if se.Description != "" {
-			fmt.Fprintln(indent.NewWriter(w, "  // "), se.Description)
-		}
-		if nest && (len(se.Dir) > 0 || se.Type == nil) {
-			pf.printNode(indent.NewWriter(w, "  "), se, true)
-		}
-		name := pf.fieldName(k)
-		kind := kind2header[se.Type.Kind]
-		fmt.Fprintf(w, "  %s %s;", kind, name)
-		fmt.Fprintln(w)
-	}
-
-	// { to match the brace below to keep brace matching working
-	fmt.Fprintln(w, "}")
-}

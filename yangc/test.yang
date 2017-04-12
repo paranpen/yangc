@@ -3,7 +3,9 @@ module nodeb-system {
   namespace "lte";
   prefix "lte";
   description "test yang module";
+  
   typedef board-type {
+    description "Type definition: board-type";
     type enumeration {
         enum umc{
           value 7;
@@ -15,7 +17,13 @@ module nodeb-system {
     }
   }
 
+  typedef my-type {
+    description "Type definition: my-type int32";
+    type int32;
+  }
+
   list table {
+    description "List definition: table";
     key board-id;
     leaf board-id {
       type enumeration {
@@ -30,8 +38,14 @@ module nodeb-system {
       type board-type;
       description "BOARD1";
     }
+
+    leaf board2 {
+      type board-type;
+      description "BOARD2";
+    }
+    
     leaf board-name {
-      type string;
+      type my-type;
       description "NAME...";
     }
   }
